@@ -44,7 +44,6 @@ Expanding this calculation reveals the original scaled message plus a small accu
 
 ## Repository Structure
 
-```text
 CyberSecurity-Crypt/
 ├── src/
 │   ├── engine.py        # Core LatticeEncryptionEngine class
