@@ -44,13 +44,13 @@ Expanding this calculation reveals the original scaled message plus a small accu
 
 ## Repository Structure
 
-CyberSecurity-Crypt/
-├── src/
-│   ├── engine.py        # Core LatticeEncryptionEngine class
-│   └── main.py          # Interactive CLI and hardware profiler
-├── .gitignore           # Ignored files for version control
-├── requirements.txt     # Python dependencies
-└── README.md            # Project documentation
+    CyberSecurity-Crypt/
+    ├── src/
+    │   ├── engine.py        # Core LatticeEncryptionEngine class
+    │   └── main.py          # Interactive CLI and hardware profiler
+    ├── .gitignore           # Ignored files for version control
+    ├── requirements.txt     # Python dependencies
+    └── README.md            # Project documentation
 
 Installation
 Prerequisites
