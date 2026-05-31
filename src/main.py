@@ -10,7 +10,7 @@ import random
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from engine import LatticeEncryptionEngine
 
-# --- Helper Functions for Data Conversion ---
+# Helper Functions for Data Conversion 
 def text_to_bits(text):
     bits = []
     for byte in text.encode('utf-8'):
@@ -33,7 +33,7 @@ def bits_to_text(bits):
     except UnicodeDecodeError:
         return "[Error: Invalid key or corrupted data structure]"
 
-# --- Menu Workflows ---
+# Menu Workflows 
 def get_lattice_parameters():
     print("\n--- Configure Lattice Parameters ---")
     try:
@@ -302,7 +302,6 @@ def handle_auto_tune():
     print(f"EB: {best['eb']}")
     print(f"Latency: {best['latency']:.2f} μs")
 
-    # IMPORTANT: call function after definition
     create_latency_graph(graph_points)
 
     input("\nPress Enter to return...")
@@ -360,7 +359,7 @@ def main():
         elif choice == "2":
             handle_decryption()
         elif choice == "3":
-            handle_auto_tune()   # FIXED (removed extra parentheses)
+            handle_auto_tune()   
         elif choice == "4":
             print("[*] Shutdown complete.")
             break

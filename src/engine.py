@@ -6,7 +6,7 @@ class LatticeEncryptionEngine:
         self.q = q
         self.error_bound = error_bound
         
-        # Automatically select CUDA if available, otherwise CPU
+        # Select CUDA if available, otherwise CPU
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def keygen(self):

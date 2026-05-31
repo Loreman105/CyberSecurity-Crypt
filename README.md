@@ -97,7 +97,7 @@ Core Operations
 
 Security Disclaimer
 
-This codebase is a direct, unoptimized implementation of LWE designed for educational and research purposes only.
+This codebase is a direct, unoptimized implementation of LWE designed for educational purposes only.
 
     Key Management Warning: The current CLI implementation serializes the secret key (s) directly into the output JSON payload for demonstration and debugging purposes. In a real-world scenario, the secret key must never be transmitted alongside the ciphertext.
 
