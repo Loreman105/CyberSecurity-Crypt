@@ -232,44 +232,132 @@ def handle_decryption():
 
 def create_latency_graph(data):
     """
-    Plots K vs latency grouped by (Q, EB)
+    Generates a bug-fixed, interactive 3D Line and Scatter Map using Plotly.
+    Maps dimension K, Modulus Q, and Latency seamlessly without interpolation errors.
     """
     if not data:
         print("[!] No graph data available.")
         return
 
-    plt.figure(figsize=(12, 6))
+    import numpy as np
+    try:
+        import plotly.graph_objects as go
+    except ImportError:
+        print("[!] Plotly library not found. Please install it via: pip install plotly")
+        return
 
-    groups = {}
+    # Extract clean arrays from profiling stream
+    qs = np.array([point[0] for point in data])
+    ebs = np.array([point[1] for point in data])
+    ks = np.array([point[2] for point in data])
+    lats = np.array([point[3] for point in data])
 
-    for q, eb, k, lat in data:
-        label = f"Q={q}, EB={eb}"
-        if label not in groups:
-            groups[label] = {"k": [], "lat": []}
+    # Explicitly define unique domain parameters to avoid NameErrors
+    unique_combos = sorted(list(set((p[0], p[1]) for p in data)))
+    unique_qs = sorted(list(set(qs)))
 
-        groups[label]["k"].append(k)
-        groups[label]["lat"].append(lat)
+    fig = go.Figure()
 
-    for label, vals in groups.items():
-        plt.plot(vals["k"], vals["lat"], marker="o", label=label)
+    # 1. Plot independent 3D profiles grouped by (Q, EB) combinations
+    for idx, (q_val, eb_val) in enumerate(unique_combos):
+        # Filter points matching this sequence path
+        mask = (qs == q_val) & (ebs == eb_val)
+        sub_k = ks[mask]
+        sub_lat = lats[mask]
+        sub_q = qs[mask]
 
-    plt.axhline(y=150, linestyle="--", label="150 μs limit")
+        # Guard Rail: If a configuration instantly failed at step 1, skip it.
+        if len(sub_k) == 0:
+            continue
 
-    plt.xlabel("K (dimension)")
-    plt.ylabel("Latency (μs)")
-    plt.title("Lattice Engine Scaling: K vs Latency")
-    plt.grid(True)
-    plt.legend()
+        # Ensure elements sequence sequentially along the K axis
+        sort_idx = np.argsort(sub_k)
+        sub_k = sub_k[sort_idx]
+        sub_lat = sub_lat[sort_idx]
+        sub_q = sub_q[sort_idx]
 
-    plt.tight_layout()
+        # Draw interactive 3D vector paths
+        fig.add_trace(go.Scatter3d(
+            x=sub_k,
+            y=sub_q,
+            z=sub_lat,
+            mode='lines+markers',
+            marker=dict(
+                size=5,
+                opacity=0.85
+            ),
+            line=dict(
+                width=4
+            ),
+            name=f"Q={q_val}, EB={eb_val}",
+            hovertemplate="<b>Lattice Run Match</b><br>" +
+                          "K Dimension: %{x}<br>" +
+                          "Modulus Q: %{y}<br>" +
+                          "Latency: %{z:.2f} μs<extra></extra>"
+        ))
 
-    out_file = "autotune_latency_graph.png"
-    plt.savefig(out_file, dpi=300)
+    # 2. Build a transparent 3D Threshold Target Surface at 150 μs
+    k_space = np.linspace(ks.min(), ks.max(), 10)
+    q_space = np.linspace(min(unique_qs), max(unique_qs), 10)
+    K_mesh, Q_mesh = np.meshgrid(k_space, q_space)
+    Z_mesh = np.full_like(K_mesh, 150.0)
 
-    print(f"\n[+] Graph saved: {out_file}")
+    fig.add_trace(go.Surface(
+        x=K_mesh,
+        y=Q_mesh,
+        z=Z_mesh,
+        colorscale=[[0, 'rgba(217, 4, 41, 0.2)'], [1, 'rgba(217, 4, 41, 0.2)']],
+        showscale=False,
+        name="150 μs Budget Ceiling",
+        hoverinfo='skip'
+    ))
 
-    plt.show()
+    # 3. Apply Premium Dark Dashboard Layout Configurations
+    fig.update_layout(
+        title=dict(
+            text="Interactive Hardware Profile: Lattice Scaling Analysis",
+            x=0.5,
+            y=0.95,
+            font=dict(size=16, color="#f8fafc")
+        ),
+        paper_bgcolor="#0f172a",
+        plot_bgcolor="#0f172a",
+        margin=dict(l=10, r=10, t=50, b=10),
+        legend=dict(
+            font=dict(color="#94a3b8"),
+            bgcolor="rgba(15, 23, 42, 0.6)"
+        ),
+        scene=dict(
+            xaxis=dict(
+                title=dict(text="K (Dimension Vector)", font=dict(color="#94a3b8")), 
+                backgroundcolor="#1e293b", 
+                gridcolor="#334155",
+                tickfont=dict(color="#94a3b8")
+            ),
+            yaxis=dict(
+                title=dict(text="Modulus Q", font=dict(color="#94a3b8")), 
+                backgroundcolor="#1e293b", 
+                gridcolor="#334155",
+                tickfont=dict(color="#94a3b8"),
+                tickvals=unique_qs
+            ),
+            zaxis=dict(
+                title=dict(text="Latency (μs)", font=dict(color="#94a3b8")), 
+                backgroundcolor="#1e293b", 
+                gridcolor="#334155",
+                tickfont=dict(color="#94a3b8")
+            ),
+            camera=dict(
+                eye=dict(x=1.8, y=-1.8, z=1.4) # Sets an optimal isometric viewpoint
+            )
+        )
+    )
 
+    # Save output engine payload to local workspace
+    out_html = "autotune_latency_graph.html"
+    fig.write_html(out_html, auto_open=True)
+    print(f"\n[+] Interactive 3D performance map compiled.")
+    print(f"[+] Launching browser trace: {out_html}")
 
 def handle_auto_tune():
     print("\n--- HARDWARE-LIMIT AUTO TUNING ---")
@@ -278,7 +366,7 @@ def handle_auto_tune():
     eb_candidates = [2, 3, 4, 5]
 
     test_iterations = 50
-    max_latency_us = 150.0
+    max_latency_us = 150
 
     results = []
     graph_points = []  # (q, eb, k, latency)
