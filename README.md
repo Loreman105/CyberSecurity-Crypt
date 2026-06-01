@@ -63,22 +63,9 @@ Prerequisites
 
 Setup Instructions
 
-    Clone the repository to your local machine:
-    Bash
-
-git clone [https://github.com/Loreman105/CyberSecurity-Crypt.git](https://github.com/Loreman105/CyberSecurity-Crypt.git)
-cd CyberSecurity-Crypt
-
-Create and activate a virtual environment:
-Bash
-
-python -m venv venv
-source venv/bin/activate  # On Windows use: venv\Scripts\activate
-
-Install the required dependencies:
-Bash
-
-    pip install torch matplotlib
+    Clone the repository to your local machine
+    
+    Then install requirments.txt
 
 Usage
 
