@@ -5,12 +5,11 @@ import json
 import torch
 import matplotlib.pyplot as plt
 import random
+from tkinter import Tk, filedialog
 
-# Ensure Python can find engine.py inside the src directory
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from engine import LatticeEncryptionEngine
 
-# Helper Functions for Data Conversion 
 def text_to_bits(text):
     bits = []
     for byte in text.encode('utf-8'):
@@ -83,27 +82,70 @@ def handle_encryption():
     encrypted_stream = []
     for bit in bits:
         u, v = engine.encrypt(A, t, bit)
-        # Convert tensors to standard Python lists for JSON compatibility
         encrypted_stream.append({
             "u": u.cpu().tolist(),
             "v": v.cpu().tolist()
         })
 
-    # Packaging Package Structure
-    payload = {
+    # SEPARATED PAYLOADS
+    # 1. The public ciphertext payload (No Secret Key)
+    public_payload = {
         "parameters": {"k": k, "q": q, "error_bound": eb},
-        "secret_key_s": s.cpu().tolist(),
         "ciphertext": encrypted_stream
+    }
+    
+    # 2. The private key payload
+    private_key_payload = {
+        "secret_key_s": s.cpu().tolist()
     }
 
     if is_file:
+        # Save Ciphertext
         output_path = os.path.join(file_dir, f"{file_base}_encrypted.json")
         with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2)
+            json.dump(public_payload, f, indent=2)
+            
+        # Save Private Key
+        key_path = os.path.join(file_dir, f"{file_base}_private_key.json")
+        with open(key_path, "w", encoding="utf-8") as f:
+            json.dump(private_key_payload, f, indent=2)
+            
         print(f"[+] Security payload successfully compiled and saved to:\n    {output_path}")
+        print(f"[+] PRIVATE KEY saved to:\n    {key_path}  <-- KEEP THIS SAFE!")
     else:
-        print("\n--- ENCRYPTED PAYLOAD (JSON TOKENS) ---")
-        print(json.dumps(payload, indent=2)[:800] + "\n... [Truncated for Console Display] ...")
+        root = Tk()
+        root.withdraw()  # Hide tkinter window
+
+        ciphertext_path = filedialog.asksaveasfilename(
+            title="Save Encrypted Payload",
+            defaultextension=".json",
+            filetypes=[("JSON Files", "*.json")],
+            initialfile="encrypted_payload.json"
+        )
+
+        if not ciphertext_path:
+            print("[!] Save cancelled.")
+            return
+
+        key_path = filedialog.asksaveasfilename(
+            title="Save Private Key",
+            defaultextension=".json",
+            filetypes=[("JSON Files", "*.json")],
+            initialfile="private_key.json"
+        )
+
+        if not key_path:
+            print("[!] Save cancelled.")
+            return
+
+        with open(ciphertext_path, "w", encoding="utf-8") as f:
+            json.dump(public_payload, f, indent=2)
+
+        with open(key_path, "w", encoding="utf-8") as f:
+            json.dump(private_key_payload, f, indent=2)
+
+        print(f"[+] Ciphertext saved to:\n    {ciphertext_path}")
+        print(f"[+] Private key saved to:\n    {key_path}")
 
 def handle_decryption():
     print("\n--- DECRYPTION MODE ---")
@@ -112,6 +154,7 @@ def handle_decryption():
     sub_choice = input("Select an option (1-2): ").strip()
 
     payload_data = None
+    key_data = None
     file_dir, file_base = "", ""
     is_file = False
 
@@ -120,15 +163,27 @@ def handle_decryption():
         if not os.path.exists(file_path):
             print("[!] Error: Target file does not exist.")
             return
+            
+        key_path = input("Enter the path to your private key (.json) file: ").strip()
+        if not os.path.exists(key_path):
+            print("[!] Error: Private key file does not exist. Cannot decrypt.")
+            return
+
         with open(file_path, "r", encoding="utf-8") as f:
             payload_data = json.load(f)
+        with open(key_path, "r", encoding="utf-8") as f:
+            key_data = json.load(f)
+            
         file_dir, file_name = os.path.split(file_path)
         file_base = file_name.replace("_encrypted.json", "")
         is_file = True
+        
     elif sub_choice == "2":
         raw_json = input("Paste your raw JSON encrypted payload string: ").strip()
+        raw_key = input("Paste your raw JSON private key string: ").strip()
         try:
             payload_data = json.loads(raw_json)
+            key_data = json.loads(raw_key)
         except Exception as e:
             print(f"[!] Critical JSON parser fault: {e}")
             return
@@ -136,7 +191,7 @@ def handle_decryption():
         print("[!] Invalid operation choice.")
         return
 
-    # Extract original parameters directly or request user overrides
+    # Extract original parameters
     params = payload_data.get("parameters", {})
     print(f"\n[Found Values] K: {params.get('k')}, Q: {params.get('q')}, Error Bound: {params.get('error_bound')}")
     
@@ -148,8 +203,13 @@ def handle_decryption():
 
     engine = LatticeEncryptionEngine(k=k, q=q, error_bound=eb)
     
-    # Re-hydrate structural math keys back onto the execution hardware
-    s = torch.tensor(payload_data["secret_key_s"], device=engine.device, dtype=torch.float32)
+    # Re-hydrate structural math keys using the separate key_data
+    try:
+        s = torch.tensor(key_data["secret_key_s"], device=engine.device, dtype=torch.float32)
+    except KeyError:
+        print("[!] Error: Invalid private key file. Missing 'secret_key_s'.")
+        return
+        
     ciphertext_stream = payload_data["ciphertext"]
 
     print(f"[*] Extracting values on device: {engine.device}")
@@ -168,6 +228,7 @@ def handle_decryption():
         print(f"[+] Plaintext recovered successfully. Saved to:\n    {output_path}")
     else:
         print(f"\n[+] Recovered Message Result:\n{decrypted_text}\n")
+
 
 def create_latency_graph(data):
     """

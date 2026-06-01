@@ -217,3 +217,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 src/autotune_latency_graph.png
+tests/encrypted_payload.json
+.gitignore
+.gitignore
+tests/private_key.json
